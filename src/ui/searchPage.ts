@@ -269,180 +269,207 @@ export function renderSearchPage(model: SearchPageModel): string {
           </div>
         </div>
         <script>
-          const form = document.getElementById('crawl-form');
-          const progress = document.getElementById('crawl-progress');
-          const progressBar = document.getElementById('progress-bar');
-          const progressText = document.getElementById('progress-text');
-          const stockInput = document.querySelector('input[name="stockQuery"]');
-          let progressInterval: number | null = null;
+          document.addEventListener('DOMContentLoaded', function() {
+            var form = document.getElementById('crawl-form');
+            var progress = document.getElementById('crawl-progress');
+            var progressBar = document.getElementById('progress-bar');
+            var progressText = document.getElementById('progress-text');
+            var stockInput = document.querySelector('input[name="stockQuery"]');
+            var progressInterval = null;
 
-          async function checkProgress() {
-            try {
-              const response = await fetch('/progress');
-              const data = await response.json();
-              if (data.isRunning) {
-                progressBar.style.width = data.percentage + '%';
-                progressText.textContent = \`진행률: \${data.percentage}% (\${data.current}/\${data.total})\`;
-                progressText.classList.add('active');
-              } else if (progressInterval) {
-                clearInterval(progressInterval);
-                progressInterval = null;
-                progress.classList.remove('active');
-                progressText.classList.remove('active');
-                form.querySelector('button[type="submit"]').disabled = false;
-                form.querySelector('button[type="submit"]').textContent = '수집 시작';
-                location.reload();
-              }
-            } catch (error) {
-              console.error('Progress check failed:', error);
-            }
-          }
-
-          form?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            progress?.classList.add('active');
-            const submitButton = form.querySelector('button[type="submit"]');
-            if (submitButton) {
-              submitButton.disabled = true;
-              submitButton.textContent = '수집 중...';
-            }
-            progressBar.style.width = '0%';
-            progressInterval = window.setInterval(checkProgress, 500);
-            
-            // Submit the form using fetch
-            const formData = new FormData(form);
-            fetch('/crawl', {
-              method: 'POST',
-              body: formData
-            }).then(() => {
-              // Form submission completed, progress polling will handle the rest
-            }).catch(error => {
-              console.error('Form submission failed:', error);
-              if (progressInterval) clearInterval(progressInterval);
-              progress?.classList.remove('active');
-              if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.textContent = '수집 시작';
-              }
-            });
-          });
-
-          // Checkbox functionality using event delegation
-          const selectAllCheckbox = document.getElementById('select-all-checkbox');
-          const selectAllButton = document.getElementById('select-all');
-          const downloadSelectedButton = document.getElementById('download-selected');
-          const downloadAllButton = document.getElementById('download-all');
-
-          // Function to get all checkboxes
-          function getCheckboxes() {
-            return document.querySelectorAll('.pdf-checkbox');
-          }
-
-          // Function to get all PDF URLs
-          function getAllPdfUrls() {
-            const checkboxes = getCheckboxes();
-            return Array.from(checkboxes).map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
-          }
-
-          // Select all checkbox functionality (using event delegation)
-          document.addEventListener('change', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.id === 'select-all-checkbox') {
-              const checked = (target as HTMLInputElement).checked;
-              getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
-            }
-          });
-
-          // Select all button functionality
-          selectAllButton?.addEventListener('click', () => {
-            const checkboxes = getCheckboxes();
-            const allChecked = Array.from(checkboxes).every(cb => (cb as HTMLInputElement).checked);
-            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
-            if (selectAllCheckbox) {
-              (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
-            }
-          });
-
-          // Download selected functionality
-          downloadSelectedButton?.addEventListener('click', () => {
-            const checkboxes = getCheckboxes();
-            const selectedUrls = Array.from(checkboxes)
-              .filter(cb => (cb as HTMLInputElement).checked)
-              .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
-            
-            if (selectedUrls.length === 0) {
-              alert('선택된 PDF가 없습니다.');
-              return;
-            }
-
-            selectedUrls.forEach((url, index) => {
-              setTimeout(() => {
-                const link = document.createElement('a');
-                link.href = url!;
-                link.target = '_blank';
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }, index * 500); // 500ms delay between downloads
-            });
-          });
-
-          // Download all functionality
-          downloadAllButton?.addEventListener('click', () => {
-            const allUrls = getAllPdfUrls();
-            
-            if (allUrls.length === 0) {
-              alert('다운로드할 PDF가 없습니다.');
-              return;
-            }
-
-            if (!confirm(\`전체 \${allUrls.length}개의 PDF를 다운로드하시겠습니까?\`)) {
-              return;
-            }
-
-            allUrls.forEach((url, index) => {
-              setTimeout(() => {
-                const link = document.createElement('a');
-                link.href = url!;
-                link.target = '_blank';
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }, index * 500); // 500ms delay between downloads
-            });
-          });
-
-          // Period buttons functionality
-          function setupPeriodButtons() {
-            const periodButtons = document.querySelectorAll('.period-buttons button');
-            const fromDateInput = document.getElementById('from-date') as HTMLInputElement;
-            const toDateInput = document.getElementById('to-date') as HTMLInputElement;
-
-            periodButtons.forEach(button => {
-              button.addEventListener('click', () => {
-                const months = parseInt(button.getAttribute('data-months') || '0');
-                const today = new Date();
-                const fromDate = new Date();
-                fromDate.setMonth(today.getMonth() - months);
-                
-                if (toDateInput) {
-                  toDateInput.value = today.toISOString().slice(0, 10);
-                  // Trigger change event for Flatpickr
-                  toDateInput.dispatchEvent(new Event('change'));
+            async function checkProgress() {
+              try {
+                var response = await fetch('/progress');
+                var data = await response.json();
+                if (data.isRunning) {
+                  progressBar.style.width = data.percentage + '%';
+                  progressText.textContent = '진행률: ' + data.percentage + '% (' + data.current + '/' + data.total + ')';
+                  progressText.classList.add('active');
+                } else if (progressInterval) {
+                  clearInterval(progressInterval);
+                  progressInterval = null;
+                  progress.classList.remove('active');
+                  progressText.classList.remove('active');
+                  var submitButton = form.querySelector('button[type="submit"]');
+                  if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = '수집 시작';
+                  }
+                  // Reload the page to show updated results
+                  location.reload();
                 }
-                if (fromDateInput) {
-                  fromDateInput.value = fromDate.toISOString().slice(0, 10);
-                  // Trigger change event for Flatpickr
-                  fromDateInput.dispatchEvent(new Event('change'));
+              } catch (error) {
+                console.error('Progress check failed:', error);
+              }
+            }
+
+            if (form) {
+              form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (progress) progress.classList.add('active');
+                var submitButton = form.querySelector('button[type="submit"]');
+                if (submitButton) {
+                  submitButton.disabled = true;
+                  submitButton.textContent = '수집 중...';
+                }
+                progressBar.style.width = '0%';
+                progressInterval = window.setInterval(checkProgress, 500);
+                
+                // Submit the form using fetch
+                var formData = new FormData(form);
+                fetch('/crawl', {
+                  method: 'POST',
+                  body: formData
+                }).then(function() {
+                  // Form submission completed, progress polling will handle the rest
+                }).catch(function(error) {
+                  console.error('Form submission failed:', error);
+                  if (progressInterval) clearInterval(progressInterval);
+                  if (progress) progress.classList.remove('active');
+                  if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.textContent = '수집 시작';
+                  }
+                });
+              });
+            }
+
+            // Checkbox functionality using event delegation
+            var selectAllCheckbox = document.getElementById('select-all-checkbox');
+            var selectAllButton = document.getElementById('select-all');
+            var downloadSelectedButton = document.getElementById('download-selected');
+            var downloadAllButton = document.getElementById('download-all');
+
+            // Function to get all checkboxes
+            function getCheckboxes() {
+              return document.querySelectorAll('.pdf-checkbox');
+            }
+
+            // Function to get all PDF URLs
+            function getAllPdfUrls() {
+              var checkboxes = getCheckboxes();
+              return Array.from(checkboxes).map(function(cb) {
+                return cb.getAttribute('data-url');
+              });
+            }
+
+            // Select all checkbox functionality (using event delegation)
+            document.addEventListener('change', function(e) {
+              var target = e.target;
+              if (target.id === 'select-all-checkbox') {
+                var checked = target.checked;
+                var checkboxes = getCheckboxes();
+                checkboxes.forEach(function(cb) {
+                  cb.checked = checked;
+                });
+              }
+            });
+
+            // Select all button functionality
+            if (selectAllButton) {
+              selectAllButton.addEventListener('click', function() {
+                var checkboxes = getCheckboxes();
+                var allChecked = Array.from(checkboxes).every(function(cb) {
+                  return cb.checked;
+                });
+                checkboxes.forEach(function(cb) {
+                  cb.checked = !allChecked;
+                });
+                if (selectAllCheckbox) {
+                  selectAllCheckbox.checked = !allChecked;
                 }
               });
-            });
-          }
+            }
 
-          setupPeriodButtons();
+            // Download selected functionality
+            if (downloadSelectedButton) {
+              downloadSelectedButton.addEventListener('click', function() {
+                var checkboxes = getCheckboxes();
+                var selectedUrls = Array.from(checkboxes)
+                  .filter(function(cb) {
+                    return cb.checked;
+                  })
+                  .map(function(cb) {
+                    return cb.getAttribute('data-url');
+                  });
+                
+                if (selectedUrls.length === 0) {
+                  alert('선택된 PDF가 없습니다.');
+                  return;
+                }
+
+                selectedUrls.forEach(function(url, index) {
+                  setTimeout(function() {
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.download = '';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }, index * 500); // 500ms delay between downloads
+                });
+              });
+            }
+
+            // Download all functionality
+            if (downloadAllButton) {
+              downloadAllButton.addEventListener('click', function() {
+                var allUrls = getAllPdfUrls();
+                
+                if (allUrls.length === 0) {
+                  alert('다운로드할 PDF가 없습니다.');
+                  return;
+                }
+
+                if (!confirm('전체 ' + allUrls.length + '개의 PDF를 다운로드하시겠습니까?')) {
+                  return;
+                }
+
+                allUrls.forEach(function(url, index) {
+                  setTimeout(function() {
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.download = '';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }, index * 500); // 500ms delay between downloads
+                });
+              });
+            }
+
+            // Period buttons functionality
+            function setupPeriodButtons() {
+              var periodButtons = document.querySelectorAll('.period-buttons button');
+              var fromDateInput = document.getElementById('from-date');
+              var toDateInput = document.getElementById('to-date');
+
+              periodButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                  var months = parseInt(button.getAttribute('data-months') || '0');
+                  var today = new Date();
+                  var fromDate = new Date();
+                  fromDate.setMonth(today.getMonth() - months);
+                  
+                  if (toDateInput) {
+                    toDateInput.value = today.toISOString().slice(0, 10);
+                    // Trigger change event for Flatpickr
+                    toDateInput.dispatchEvent(new Event('change'));
+                  }
+                  if (fromDateInput) {
+                    fromDateInput.value = fromDate.toISOString().slice(0, 10);
+                    // Trigger change event for Flatpickr
+                    fromDateInput.dispatchEvent(new Event('change'));
+                  }
+                });
+              });
+            }
+
+            setupPeriodButtons();
+          });
         </script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>

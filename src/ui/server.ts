@@ -82,7 +82,7 @@ async function handleRequest(req: Request): Promise<Response> {
     const stockQuery = url.searchParams.get("stockQuery") ?? "";
     const from = url.searchParams.get("from") ?? today;
     const to = url.searchParams.get("to") ?? today;
-    const reports = loadReports(db, stockQuery, from, to);
+    const reports = stockQuery.trim() ? loadReports(db, stockQuery, from, to) : [];
     const recentStocks = getRecentStocks(db);
     const allStocks = getAllStocks(db);
     db.close();

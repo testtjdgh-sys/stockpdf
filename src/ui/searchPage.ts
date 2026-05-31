@@ -315,7 +315,6 @@ export function renderSearchPage(model: SearchPageModel): string {
           const selectAllCheckbox = document.getElementById('select-all-checkbox');
           const selectAllButton = document.getElementById('select-all');
           const downloadSelectedButton = document.getElementById('download-selected');
-          const checkboxes = document.querySelectorAll('.pdf-checkbox');
 
           // Period buttons functionality
           const periodButtons = document.querySelectorAll('.period-buttons button');
@@ -334,12 +333,18 @@ export function renderSearchPage(model: SearchPageModel): string {
             });
           });
 
+          // Function to get all checkboxes
+          function getCheckboxes() {
+            return document.querySelectorAll('.pdf-checkbox');
+          }
+
           selectAllCheckbox?.addEventListener('change', (e) => {
             const checked = (e.target as HTMLInputElement).checked;
-            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = checked);
+            getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
           });
 
           selectAllButton?.addEventListener('click', () => {
+            const checkboxes = getCheckboxes();
             const allChecked = Array.from(checkboxes).every(cb => (cb as HTMLInputElement).checked);
             checkboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
             if (selectAllCheckbox) {
@@ -348,6 +353,7 @@ export function renderSearchPage(model: SearchPageModel): string {
           });
 
           downloadSelectedButton?.addEventListener('click', () => {
+            const checkboxes = getCheckboxes();
             const selectedUrls = Array.from(checkboxes)
               .filter(cb => (cb as HTMLInputElement).checked)
               .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));

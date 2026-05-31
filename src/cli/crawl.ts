@@ -31,16 +31,20 @@ async function fetchText(url: string): Promise<string> {
 }
 
 async function collectCandidates(stockQuery: string, from: string, to: string): Promise<SourceReportCandidate[]> {
+  console.log(`[COLLECT] Starting collection for ${stockQuery} from ${from} to ${to}`);
   const candidates: SourceReportCandidate[] = [];
 
   // Check if stockQuery is a ticker code (6 digits)
   const isTicker = /^\d{6}$/.test(stockQuery);
+  console.log(`[COLLECT] isTicker: ${isTicker}`);
 
   // Naver research with pagination
   const naverSections = ["company", "industry", "market", "invest"] as const;
   for (const section of naverSections) {
     let page = 1;
     let hasMore = true;
+    let sectionCount = 0;
+    console.log(`[NAVER] Starting section: ${section}`);
     while (hasMore) {
       try {
         const url = buildNaverResearchUrl({
@@ -53,54 +57,66 @@ async function collectCandidates(stockQuery: string, from: string, to: string): 
           to,
           page
         });
+        console.log(`[NAVER] Fetching ${section} page ${page}: ${url}`);
         const html = await fetchText(url);
         const reports = extractNaverReports(html, url);
+        console.log(`[NAVER] ${section} page ${page}: found ${reports.length} reports`);
         if (reports.length === 0) {
           hasMore = false;
         } else {
           candidates.push(...reports);
+          sectionCount += reports.length;
           page++;
           // Safety limit to prevent infinite loops
-          if (page > 100) {
-            console.warn(`Reached page limit (${page}) for section ${section}`);
+          if (page > 10) {
+            console.warn(`[NAVER] Reached page limit (${page}) for section ${section}, found ${sectionCount} total`);
             hasMore = false;
           }
         }
       } catch (error) {
-        console.warn(`Skipping Naver ${section} page ${page}: ${(error as Error).message}`);
+        console.warn(`[NAVER] Skipping ${section} page ${page}: ${(error as Error).message}`);
         hasMore = false;
       }
     }
+    console.log(`[NAVER] Section ${section} complete: ${sectionCount} reports`);
   }
 
   // Hankyung consensus with pagination
   try {
     let page = 1;
     let hasMore = true;
+    let hankyungCount = 0;
+    console.log(`[HANKYUNG] Starting Hankyung consensus`);
     while (hasMore) {
       try {
         const url = buildHankyungConsensusUrl({ from, to, keyword: stockQuery, skinType: "company", page });
+        console.log(`[HANKYUNG] Fetching page ${page}: ${url}`);
         const html = await fetchText(url);
         const reports = extractHankyungReports(html, url);
+        console.log(`[HANKYUNG] Page ${page}: found ${reports.length} reports`);
         if (reports.length === 0) {
           hasMore = false;
         } else {
           candidates.push(...reports);
+          hankyungCount += reports.length;
           page++;
           // Safety limit to prevent infinite loops
-          if (page > 100) {
-            console.warn(`Reached page limit (${page}) for Hankyung consensus`);
+          if (page > 10) {
+            console.warn(`[HANKYUNG] Reached page limit (${page}), found ${hankyungCount} total`);
             hasMore = false;
           }
         }
       } catch (error) {
-        console.warn(`Skipping Hankyung consensus page ${page}: ${(error as Error).message}`);
+        console.warn(`[HANKYUNG] Skipping page ${page}: ${(error as Error).message}`);
         hasMore = false;
       }
     }
+    console.log(`[HANKYUNG] Complete: ${hankyungCount} reports`);
   } catch (error) {
-    console.warn(`Skipping Hankyung consensus: ${(error as Error).message}`);
+    console.warn(`[HANKYUNG] Error: ${(error as Error).message}`);
   }
+
+  console.log(`[COLLECT] Total candidates before filtering: ${candidates.length}`);
 
   // Filter candidates to match the search query and date range
   const filtered = candidates.filter(candidate => {
@@ -118,6 +134,7 @@ async function collectCandidates(stockQuery: string, from: string, to: string): 
     return matchesStock && withinDateRange;
   });
 
+  console.log(`[COLLECT] Total candidates after filtering: ${filtered.length}`);
   return filtered;
 }
 
@@ -135,11 +152,13 @@ function toFinalReport(candidate: SourceReportCandidate): Report {
 }
 
 export async function crawlReports(stockQuery: string, from: string, to: string) {
+  console.log(`[CRAWL START] stockQuery: ${stockQuery}, from: ${from}, to: ${to}`);
   const db = openDb();
 
   crawlProgress = { current: 0, total: 0, percentage: 0, isRunning: true };
 
   const candidates = await collectCandidates(stockQuery, from, to);
+  console.log(`[CRAWL] Found ${candidates.length} candidates`);
   const saved: Report[] = [];
   const total = candidates.length;
   crawlProgress.total = total;
@@ -159,10 +178,11 @@ export async function crawlReports(stockQuery: string, from: string, to: string)
     
     crawlProgress.current = i + 1;
     crawlProgress.percentage = Math.round(((i + 1) / total) * 100);
-    console.log(`진행률: ${crawlProgress.percentage}% (${i + 1}/${total})`);
+    console.log(`진행률: ${crawlProgress.percentage}% (${i + 1}/${total}) - ${report.stockName}: ${report.reportTitle}`);
   }
 
   crawlProgress.isRunning = false;
   db.close();
+  console.log(`[CRAWL END] Saved ${saved.length} reports`);
   return saved;
 }

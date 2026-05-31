@@ -295,8 +295,16 @@ export function renderSearchPage(model: SearchPageModel): string {
                     submitButton.disabled = false;
                     submitButton.textContent = '수집 시작';
                   }
-                  // Reload the page to show updated results
-                  location.reload();
+                  // Reload the page with current form parameters to show updated results
+                  var stockQuery = stockInput ? stockInput.value : '';
+                  var fromDate = document.getElementById('from-date') ? document.getElementById('from-date').value : '';
+                  var toDate = document.getElementById('to-date') ? document.getElementById('to-date').value : '';
+                  var params = new URLSearchParams();
+                  if (stockQuery) params.set('stockQuery', stockQuery);
+                  if (fromDate) params.set('from', fromDate);
+                  if (toDate) params.set('to', toDate);
+                  var queryString = params.toString();
+                  window.location.href = queryString ? '/' + '?' + queryString : '/';
                 }
               } catch (error) {
                 console.error('Progress check failed:', error);
@@ -321,8 +329,10 @@ export function renderSearchPage(model: SearchPageModel): string {
                 fetch('/crawl', {
                   method: 'POST',
                   body: formData
-                }).then(function() {
-                  // Form submission completed, progress polling will handle the rest
+                }).then(function(response) {
+                  return response.json();
+                }).then(function(data) {
+                  console.log('Crawl started:', data);
                 }).catch(function(error) {
                   console.error('Form submission failed:', error);
                   if (progressInterval) clearInterval(progressInterval);

@@ -42,11 +42,15 @@ function dedupeReports(rows: any[]) {
 }
 
 function loadReports(db: any, stockQuery: string, from: string, to: string) {
+  console.log(`[LOAD] Querying reports: stockQuery="${stockQuery}", from="${from}", to="${to}"`);
   const filtered = dedupeReports(findReports(db, { stockQuery, from, to }));
+  console.log(`[LOAD] Found ${filtered.length} reports with date filter`);
   if (filtered.length > 0 || !stockQuery.trim()) {
     return filtered;
   }
-  return dedupeReports(findReportsWithoutDate(db, stockQuery));
+  const withoutDate = dedupeReports(findReportsWithoutDate(db, stockQuery));
+  console.log(`[LOAD] Found ${withoutDate.length} reports without date filter`);
+  return withoutDate;
 }
 
 async function handleRequest(req: Request): Promise<Response> {
@@ -59,22 +63,16 @@ async function handleRequest(req: Request): Promise<Response> {
     const stockQuery = body.stockQuery?.trim() || "";
     const from = body.from || today;
     const to = body.to || today;
-    const saved = await crawlReports(stockQuery, from, to);
-    const reports = loadReports(db, stockQuery, from, to);
-    const recentStocks = getRecentStocks(db);
-    const allStocks = getAllStocks(db);
+    
+    // Start crawl in background without blocking
+    crawlReports(stockQuery, from, to).catch(error => {
+      console.error('Crawl error:', error);
+    });
+    
     db.close();
     return new Response(
-      renderSearchPage({
-        reports: reports.map(toReportRow),
-        recentStocks,
-        allStocks,
-        stockQuery,
-        from,
-        to,
-        message: `수집 완료: ${saved.length}건`
-      }),
-      { headers: { "Content-Type": "text/html; charset=utf-8" } }
+      JSON.stringify({ status: 'started' }),
+      { headers: { "Content-Type": "application/json" } }
     );
   }
 
@@ -111,14 +109,15 @@ async function handleRequest(req: Request): Promise<Response> {
 
 export function startServer(port = 3000) {
   const server = createServer(async (req, res) => {
+    const body = req.method === "GET" || req.method === "HEAD" ? undefined : await new Promise<string>((resolve) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      req.on("end", () => resolve(Buffer.concat(chunks).toString()));
+    });
     const request = new Request(`http://localhost${req.url}`, {
       method: req.method,
       headers: req.headers as HeadersInit,
-      body: req.method === "GET" || req.method === "HEAD" ? undefined : await new Promise<Buffer>((resolve) => {
-        const chunks: Buffer[] = [];
-        req.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
-        req.on("end", () => resolve(Buffer.concat(chunks)));
-      })
+      body: body
     });
     const response = await handleRequest(request);
     res.writeHead(response.status, Object.fromEntries(response.headers.entries()));

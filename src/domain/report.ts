@@ -12,6 +12,7 @@ export interface Report {
   pdfUrl: string;
   localFilePath: string | null;
   downloadStatus: DownloadStatus;
+  targetPrice?: string;
   createdAt?: string;
   updatedAt?: string;
 }

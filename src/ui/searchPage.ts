@@ -34,17 +34,16 @@ export function renderSearchPage(model: SearchPageModel): string {
               <td><input type="checkbox" class="pdf-checkbox" data-url="${escapeHtml(report.pdfUrl)}" data-index="${index}"></td>
               <td>${escapeHtml(report.reportDate)}</td>
               <td>${escapeHtml(report.stockName)}</td>
-              <td>${escapeHtml(report.ticker || "-")}</td>
               <td>${escapeHtml(report.reportTitle)}</td>
               <td>${escapeHtml(report.firmName || "-")}</td>
               <td>${escapeHtml(report.sourceName)}</td>
-              <td>${escapeHtml(report.downloadStatus)}</td>
+              <td>${escapeHtml(report.targetPrice || "-")}</td>
               <td><a href="${escapeHtml(report.pdfUrl)}" target="_blank" rel="noopener">다운로드</a></td>
             </tr>
           `
         )
         .join("")
-    : `<tr><td colspan="9" class="empty">No reports found</td></tr>`;
+    : `<tr><td colspan="8" class="empty">No reports found</td></tr>`;
 
   return `
     <!doctype html>
@@ -256,11 +255,10 @@ export function renderSearchPage(model: SearchPageModel): string {
                     <th><input type="checkbox" id="select-all-checkbox"></th>
                     <th>일자</th>
                     <th>종목</th>
-                    <th>티커</th>
                     <th>제목</th>
                     <th>증권사</th>
                     <th>출처</th>
-                    <th>상태</th>
+                    <th>목표가</th>
                     <th>PDF</th>
                   </tr>
                 </thead>

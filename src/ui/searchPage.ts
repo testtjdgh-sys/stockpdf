@@ -246,7 +246,8 @@ export function renderSearchPage(model: SearchPageModel): string {
                 <h2 style="margin:0;">수집 결과</h2>
                 <div>
                   <button type="button" id="select-all" style="padding:8px 12px; font-size:0.9rem; margin-right:8px;">전체 선택</button>
-                  <button type="button" id="download-selected" style="padding:8px 12px; font-size:0.9rem;">선택 다운로드</button>
+                  <button type="button" id="download-selected" style="padding:8px 12px; font-size:0.9rem; margin-right:8px;">선택 다운로드</button>
+                  <button type="button" id="download-all" style="padding:8px 12px; font-size:0.9rem;">전체 다운로드</button>
                 </div>
               </div>
               <table>
@@ -327,10 +328,92 @@ export function renderSearchPage(model: SearchPageModel): string {
             });
           });
 
-          // Checkbox functionality
+          // Checkbox functionality using event delegation
           const selectAllCheckbox = document.getElementById('select-all-checkbox');
           const selectAllButton = document.getElementById('select-all');
           const downloadSelectedButton = document.getElementById('download-selected');
+          const downloadAllButton = document.getElementById('download-all');
+
+          // Function to get all checkboxes
+          function getCheckboxes() {
+            return document.querySelectorAll('.pdf-checkbox');
+          }
+
+          // Function to get all PDF URLs
+          function getAllPdfUrls() {
+            const checkboxes = getCheckboxes();
+            return Array.from(checkboxes).map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
+          }
+
+          // Select all checkbox functionality (using event delegation)
+          document.addEventListener('change', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.id === 'select-all-checkbox') {
+              const checked = (target as HTMLInputElement).checked;
+              getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
+            }
+          });
+
+          // Select all button functionality
+          selectAllButton?.addEventListener('click', () => {
+            const checkboxes = getCheckboxes();
+            const allChecked = Array.from(checkboxes).every(cb => (cb as HTMLInputElement).checked);
+            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
+            if (selectAllCheckbox) {
+              (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
+            }
+          });
+
+          // Download selected functionality
+          downloadSelectedButton?.addEventListener('click', () => {
+            const checkboxes = getCheckboxes();
+            const selectedUrls = Array.from(checkboxes)
+              .filter(cb => (cb as HTMLInputElement).checked)
+              .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
+            
+            if (selectedUrls.length === 0) {
+              alert('선택된 PDF가 없습니다.');
+              return;
+            }
+
+            selectedUrls.forEach((url, index) => {
+              setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = url!;
+                link.target = '_blank';
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }, index * 500); // 500ms delay between downloads
+            });
+          });
+
+          // Download all functionality
+          downloadAllButton?.addEventListener('click', () => {
+            const allUrls = getAllPdfUrls();
+            
+            if (allUrls.length === 0) {
+              alert('다운로드할 PDF가 없습니다.');
+              return;
+            }
+
+            if (!confirm(\`전체 \${allUrls.length}개의 PDF를 다운로드하시겠습니까?\`)) {
+              return;
+            }
+
+            allUrls.forEach((url, index) => {
+              setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = url!;
+                link.target = '_blank';
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }, index * 500); // 500ms delay between downloads
+            });
+          });
 
           // Period buttons functionality
           function setupPeriodButtons() {
@@ -360,56 +443,6 @@ export function renderSearchPage(model: SearchPageModel): string {
           }
 
           setupPeriodButtons();
-
-          // Function to get all checkboxes
-          function getCheckboxes() {
-            return document.querySelectorAll('.pdf-checkbox');
-          }
-
-          // Setup checkbox event listeners
-          function setupCheckboxListeners() {
-            const checkboxes = getCheckboxes();
-            
-            selectAllCheckbox?.addEventListener('change', (e) => {
-              const checked = (e.target as HTMLInputElement).checked;
-              getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
-            });
-
-            selectAllButton?.addEventListener('click', () => {
-              const currentCheckboxes = getCheckboxes();
-              const allChecked = Array.from(currentCheckboxes).every(cb => (cb as HTMLInputElement).checked);
-              currentCheckboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
-              if (selectAllCheckbox) {
-                (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
-              }
-            });
-
-            downloadSelectedButton?.addEventListener('click', () => {
-              const currentCheckboxes = getCheckboxes();
-              const selectedUrls = Array.from(currentCheckboxes)
-                .filter(cb => (cb as HTMLInputElement).checked)
-                .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
-              
-              if (selectedUrls.length === 0) {
-                alert('선택된 PDF가 없습니다.');
-                return;
-              }
-
-              selectedUrls.forEach((url, index) => {
-                setTimeout(() => {
-                  const link = document.createElement('a');
-                  link.href = url!;
-                  link.target = '_blank';
-                  link.download = '';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }, index * 500); // 500ms delay between downloads
-              });
-            });
-          }
-
-          setupCheckboxListeners();
         </script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>

@@ -317,21 +317,25 @@ export function renderSearchPage(model: SearchPageModel): string {
           const downloadSelectedButton = document.getElementById('download-selected');
 
           // Period buttons functionality
-          const periodButtons = document.querySelectorAll('.period-buttons button');
-          const fromDateInput = document.getElementById('from-date') as HTMLInputElement;
-          const toDateInput = document.getElementById('to-date') as HTMLInputElement;
+          function setupPeriodButtons() {
+            const periodButtons = document.querySelectorAll('.period-buttons button');
+            const fromDateInput = document.getElementById('from-date') as HTMLInputElement;
+            const toDateInput = document.getElementById('to-date') as HTMLInputElement;
 
-          periodButtons.forEach(button => {
-            button.addEventListener('click', () => {
-              const months = parseInt(button.getAttribute('data-months') || '0');
-              const today = new Date();
-              const fromDate = new Date();
-              fromDate.setMonth(today.getMonth() - months);
-              
-              toDateInput.value = today.toISOString().slice(0, 10);
-              fromDateInput.value = fromDate.toISOString().slice(0, 10);
+            periodButtons.forEach(button => {
+              button.addEventListener('click', () => {
+                const months = parseInt(button.getAttribute('data-months') || '0');
+                const today = new Date();
+                const fromDate = new Date();
+                fromDate.setMonth(today.getMonth() - months);
+                
+                if (toDateInput) toDateInput.value = today.toISOString().slice(0, 10);
+                if (fromDateInput) fromDateInput.value = fromDate.toISOString().slice(0, 10);
+              });
             });
-          });
+          }
+
+          setupPeriodButtons();
 
           // Function to get all checkboxes
           function getCheckboxes() {

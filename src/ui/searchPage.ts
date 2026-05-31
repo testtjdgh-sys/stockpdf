@@ -164,6 +164,25 @@ export function renderSearchPage(model: SearchPageModel): string {
           .empty { text-align: center; color: var(--muted); padding: 32px; }
           .grid { display: grid; gap: 18px; }
           .hint { color: var(--muted); font-size: 0.9rem; }
+          input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+          }
+          input[type="date"] {
+            font-size: 1rem;
+            padding: 16px 14px;
+          }
+          .period-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+          }
+          .period-buttons button {
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            background: linear-gradient(135deg, var(--accent-2), #c2410c);
+          }
           @media (max-width: 900px) {
             .hero, .controls { grid-template-columns: 1fr; }
           }
@@ -190,14 +209,19 @@ export function renderSearchPage(model: SearchPageModel): string {
               </label>
               <label>
                 시작일
-                <input type="date" name="from" value="${escapeHtml(model.from)}" />
+                <input type="date" name="from" value="${escapeHtml(model.from)}" id="from-date" />
               </label>
               <label>
                 종료일
-                <input type="date" name="to" value="${escapeHtml(model.to)}" />
+                <input type="date" name="to" value="${escapeHtml(model.to)}" id="to-date" />
               </label>
               <button type="submit">수집 시작</button>
             </form>
+            <div class="period-buttons">
+              <button type="button" data-months="1">1개월</button>
+              <button type="button" data-months="2">2개월</button>
+              <button type="button" data-months="3">3개월</button>
+            </div>
             <datalist id="recent-stocks">${options}</datalist>
             <div class="recent-stocks">종목 목록은 입력창 자동완성에서 선택할 수 있습니다.</div>
             <div class="progress-shell" id="crawl-progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
@@ -292,6 +316,23 @@ export function renderSearchPage(model: SearchPageModel): string {
           const selectAllButton = document.getElementById('select-all');
           const downloadSelectedButton = document.getElementById('download-selected');
           const checkboxes = document.querySelectorAll('.pdf-checkbox');
+
+          // Period buttons functionality
+          const periodButtons = document.querySelectorAll('.period-buttons button');
+          const fromDateInput = document.getElementById('from-date') as HTMLInputElement;
+          const toDateInput = document.getElementById('to-date') as HTMLInputElement;
+
+          periodButtons.forEach(button => {
+            button.addEventListener('click', () => {
+              const months = parseInt(button.getAttribute('data-months') || '0');
+              const today = new Date();
+              const fromDate = new Date();
+              fromDate.setMonth(today.getMonth() - months);
+              
+              toDateInput.value = today.toISOString().slice(0, 10);
+              fromDateInput.value = fromDate.toISOString().slice(0, 10);
+            });
+          });
 
           selectAllCheckbox?.addEventListener('change', (e) => {
             const checked = (e.target as HTMLInputElement).checked;

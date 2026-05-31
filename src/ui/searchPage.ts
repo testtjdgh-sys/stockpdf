@@ -53,6 +53,7 @@ export function renderSearchPage(model: SearchPageModel): string {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Stock Report Crawler</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
         <style>
           :root {
             color-scheme: light;
@@ -170,8 +171,19 @@ export function renderSearchPage(model: SearchPageModel): string {
             cursor: pointer;
           }
           input[type="date"] {
-            font-size: 1rem;
+            font-size: 1.1rem;
             padding: 16px 14px;
+            min-height: 50px;
+            cursor: pointer;
+          }
+          .flatpickr-calendar {
+            font-size: 16px;
+            width: 350px !important;
+          }
+          .flatpickr-day {
+            font-size: 15px;
+            height: 36px;
+            line-height: 36px;
           }
           .period-buttons {
             display: flex;
@@ -329,8 +341,16 @@ export function renderSearchPage(model: SearchPageModel): string {
                 const fromDate = new Date();
                 fromDate.setMonth(today.getMonth() - months);
                 
-                if (toDateInput) toDateInput.value = today.toISOString().slice(0, 10);
-                if (fromDateInput) fromDateInput.value = fromDate.toISOString().slice(0, 10);
+                if (toDateInput) {
+                  toDateInput.value = today.toISOString().slice(0, 10);
+                  // Trigger change event for Flatpickr
+                  toDateInput.dispatchEvent(new Event('change'));
+                }
+                if (fromDateInput) {
+                  fromDateInput.value = fromDate.toISOString().slice(0, 10);
+                  // Trigger change event for Flatpickr
+                  fromDateInput.dispatchEvent(new Event('change'));
+                }
               });
             });
           }
@@ -378,6 +398,31 @@ export function renderSearchPage(model: SearchPageModel): string {
                 document.body.removeChild(link);
               }, index * 500); // 500ms delay between downloads
             });
+          });
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+        <script>
+          // Initialize Flatpickr for date inputs
+          document.addEventListener('DOMContentLoaded', () => {
+            const fromDateInput = document.getElementById('from-date');
+            const toDateInput = document.getElementById('to-date');
+            
+            if (fromDateInput) {
+              flatpickr(fromDateInput, {
+                locale: 'ko',
+                dateFormat: 'Y-m-d',
+                maxDate: 'today'
+              });
+            }
+            
+            if (toDateInput) {
+              flatpickr(toDateInput, {
+                locale: 'ko',
+                dateFormat: 'Y-m-d',
+                maxDate: 'today'
+              });
+            }
           });
         </script>
       </body>

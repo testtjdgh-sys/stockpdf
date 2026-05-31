@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import type { SourceReportCandidate } from "./types";
 
-const HANKYUNG_BASE = "https://consensus.hankyung.com";
+const HANKYUNG_BASE = "https://markets.hankyung.com";
 
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
@@ -28,10 +28,10 @@ export function extractHankyungReports(html: string, pageUrl: string): SourceRep
   const $ = cheerio.load(html);
   const reports: SourceReportCandidate[] = [];
 
-  $("a[href^='/analysis/downpdf?report_idx='], a[href*='/analysis/downpdf?report_idx=']").each((_i, el) => {
+  $("a[href^='/pdf/'], a[href*='/pdf/']").each((_i, el) => {
     const pdfHref = $(el).attr("href");
     if (!pdfHref) return;
-    const pdfUrl = new URL(pdfHref, pageUrl).toString();
+    const pdfUrl = new URL(pdfHref, HANKYUNG_BASE).toString();
     const title = normalizeText($(el).attr("title") ?? $(el).text());
     const row = $(el).closest("tr");
     const surroundingText = normalizeText(row.text() || $(el).parent().text());

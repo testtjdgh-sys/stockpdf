@@ -3,6 +3,7 @@ import type { Report } from "../domain/report";
 export interface SearchPageModel {
   reports: Report[];
   recentStocks: Array<{ ticker: string; stockName: string }>;
+  allStocks: Array<{ ticker: string; stockName: string }>;
   stockQuery: string;
   from: string;
   to: string;
@@ -18,7 +19,7 @@ function escapeHtml(input: string): string {
 }
 
 export function renderSearchPage(model: SearchPageModel): string {
-  const options = model.recentStocks
+  const options = model.allStocks
     .map((stock) => {
       const label = stock.ticker ? `${stock.stockName} (${stock.ticker})` : stock.stockName;
       return `<option value="${escapeHtml(stock.stockName)}" label="${escapeHtml(label)}"></option>`;
@@ -34,14 +35,15 @@ export function renderSearchPage(model: SearchPageModel): string {
               <td>${escapeHtml(report.stockName)}</td>
               <td>${escapeHtml(report.ticker || "-")}</td>
               <td>${escapeHtml(report.reportTitle)}</td>
+              <td>${escapeHtml(report.firmName || "-")}</td>
               <td>${escapeHtml(report.sourceName)}</td>
               <td>${escapeHtml(report.downloadStatus)}</td>
-              <td>${report.localFilePath ? `<a href="file://${escapeHtml(report.localFilePath)}">열기</a>` : "-"}</td>
+              <td><a href="${escapeHtml(report.pdfUrl)}" target="_blank" rel="noopener">다운로드</a></td>
             </tr>
           `
         )
         .join("")
-    : `<tr><td colspan="7" class="empty">No reports found</td></tr>`;
+    : `<tr><td colspan="8" class="empty">No reports found</td></tr>`;
 
   return `
     <!doctype html>
@@ -116,6 +118,34 @@ export function renderSearchPage(model: SearchPageModel): string {
             margin-top: 14px;
             color: var(--muted);
           }
+          .progress-shell {
+            margin-top: 14px;
+            height: 12px;
+            border-radius: 999px;
+            background: #ebe5d8;
+            overflow: hidden;
+            display: none;
+          }
+          .progress-shell.active { display: block; }
+          .progress-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), #34d399, var(--accent));
+            transition: width 0.3s ease;
+          }
+          .progress-text {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: var(--muted);
+            display: none;
+          }
+          .progress-text.active { display: block; }
+          .recent-stocks {
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.9rem;
+          }
           table {
             width: 100%;
             border-collapse: collapse;
@@ -152,7 +182,7 @@ export function renderSearchPage(model: SearchPageModel): string {
           </div>
 
           <div class="panel card">
-            <form method="post" action="/crawl" class="controls">
+            <form method="post" action="/crawl" class="controls" id="crawl-form">
               <label>
                 종목명/티커
                 <input list="recent-stocks" name="stockQuery" value="${escapeHtml(model.stockQuery)}" placeholder="예: 삼성전자, 005930" />
@@ -168,6 +198,9 @@ export function renderSearchPage(model: SearchPageModel): string {
               <button type="submit">수집 시작</button>
             </form>
             <datalist id="recent-stocks">${options}</datalist>
+            <div class="recent-stocks">종목 목록은 입력창 자동완성에서 선택할 수 있습니다.</div>
+            <div class="progress-shell" id="crawl-progress" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+            <div class="progress-text" id="progress-text" aria-hidden="true"></div>
             <div class="status">${model.message ? escapeHtml(model.message) : "준비됨"}</div>
           </div>
 
@@ -181,6 +214,7 @@ export function renderSearchPage(model: SearchPageModel): string {
                     <th>종목</th>
                     <th>티커</th>
                     <th>제목</th>
+                    <th>증권사</th>
                     <th>출처</th>
                     <th>상태</th>
                     <th>PDF</th>
@@ -191,6 +225,43 @@ export function renderSearchPage(model: SearchPageModel): string {
             </div>
           </div>
         </div>
+        <script>
+          const form = document.getElementById('crawl-form');
+          const progress = document.getElementById('crawl-progress');
+          const progressBar = document.getElementById('progress-bar');
+          const progressText = document.getElementById('progress-text');
+          const stockInput = document.querySelector('input[name="stockQuery"]');
+          let progressInterval: number | null = null;
+
+          async function checkProgress() {
+            try {
+              const response = await fetch('/progress');
+              const data = await response.json();
+              if (data.isRunning) {
+                progressBar.style.width = data.percentage + '%';
+                progressText.textContent = \`진행률: \${data.percentage}% (\${data.current}/\${data.total})\`;
+                progressText.classList.add('active');
+              } else if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+                progress.classList.remove('active');
+                progressText.classList.remove('active');
+                form.querySelector('button[type="submit"]').disabled = false;
+                form.querySelector('button[type="submit"]').textContent = '수집 시작';
+                location.reload();
+              }
+            } catch (error) {
+              console.error('Progress check failed:', error);
+            }
+          }
+
+          form?.addEventListener('submit', () => {
+            progress?.classList.add('active');
+            form.querySelector('button[type="submit"]').disabled = true;
+            form.querySelector('button[type="submit"]').textContent = '수집 중...';
+            progressInterval = window.setInterval(checkProgress, 500);
+          });
+        </script>
       </body>
     </html>
   `;

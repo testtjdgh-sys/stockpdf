@@ -23,9 +23,9 @@ describe("naverResearch", () => {
           <td><a href="/item/main.naver?code=005930">삼성전자</a></td>
           <td><a href="company_read.naver?nid=93364&page=1">실적 개선 기대</a></td>
           <td>삼성증권</td>
-          <td>리포트</td>
-          <td>2026.05.29</td>
           <td class="tc"><a href="https://stock.pstatic.net/stock-research/company/66/20260529_company_216858000.pdf"><img alt="pdf"></a></td>
+          <td>2026.05.29</td>
+          <td>4233</td>
         </tr>
       </table>
     `;
@@ -37,7 +37,7 @@ describe("naverResearch", () => {
         ticker: "005930",
         reportTitle: "실적 개선 기대",
         firmName: "삼성증권",
-        reportDate: "2026.05.29",
+        reportDate: "2026-05-29",
         sourceUrl: "https://finance.naver.com/research/company_read.naver?nid=93364&page=1",
         pdfUrl: "https://stock.pstatic.net/stock-research/company/66/20260529_company_216858000.pdf"
       }

@@ -22,6 +22,15 @@ export function openDb() {
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(source_name, source_url, ticker, report_date)
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_master (
+      ticker TEXT PRIMARY KEY,
+      stock_name TEXT NOT NULL,
+      market_name TEXT NOT NULL,
+      industry_name TEXT NOT NULL,
+      listing_date TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     )
   `);
   return db;
@@ -57,8 +66,9 @@ export function findReports(db: Database.Database, query: {
   to: string;
 }) {
   const stmt = db.prepare(`
-    SELECT * FROM reports
-    WHERE (stock_name LIKE @stockLike OR ticker LIKE @stockLike)
+    SELECT *
+    FROM reports
+    WHERE (stock_name LIKE @stockLike OR ticker LIKE @stockLike OR report_title LIKE @stockLike)
       AND report_date >= @from
       AND report_date <= @to
     ORDER BY report_date DESC, id DESC
@@ -70,16 +80,95 @@ export function findReports(db: Database.Database, query: {
   });
 }
 
+export function findReportsWithoutDate(db: Database.Database, stockQuery: string) {
+  const stmt = db.prepare(`
+    SELECT *
+    FROM reports
+    WHERE (stock_name LIKE @stockLike OR ticker LIKE @stockLike OR report_title LIKE @stockLike)
+    ORDER BY report_date DESC, id DESC
+  `);
+  return stmt.all({
+    stockLike: `%${stockQuery}%`
+  });
+}
+
+export function getAllStocks(db: Database.Database, limit = 5000) {
+  const masterCount = db.prepare(`SELECT COUNT(*) AS count FROM stock_master`).get() as { count: number };
+  if (masterCount.count > 0) {
+    return db
+      .prepare(
+        `
+        SELECT ticker, stock_name AS stockName
+        FROM stock_master
+        ORDER BY stock_name COLLATE NOCASE ASC, ticker ASC
+        LIMIT ?
+      `
+      )
+      .all(limit) as Array<{ ticker: string; stockName: string }>;
+  }
+  return db
+    .prepare(
+      `
+      SELECT ticker, stock_name AS stockName
+      FROM reports
+      WHERE stock_name != '' AND ticker != ''
+      GROUP BY ticker, stock_name
+      ORDER BY stock_name COLLATE NOCASE ASC, ticker ASC
+      LIMIT ?
+    `
+    )
+    .all(limit) as Array<{ ticker: string; stockName: string }>;
+}
+
 export function getRecentStocks(db: Database.Database, limit = 20) {
   return db
     .prepare(
       `
       SELECT ticker, stock_name AS stockName
       FROM reports
+      WHERE stock_name != '' AND ticker != ''
       GROUP BY ticker, stock_name
-      ORDER BY MAX(updated_at) DESC
+      ORDER BY MAX(COALESCE(updated_at, created_at)) DESC
       LIMIT ?
     `
     )
     .all(limit) as Array<{ ticker: string; stockName: string }>;
+}
+
+export function replaceStockMaster(
+  db: Database.Database,
+  rows: Array<{
+    ticker: string;
+    stockName: string;
+    marketName: string;
+    industryName: string;
+    listingDate: string;
+    updatedAt: string;
+  }>
+) {
+  const insert = db.prepare(`
+    INSERT INTO stock_master (
+      ticker, stock_name, market_name, industry_name, listing_date, updated_at
+    ) VALUES (
+      @ticker, @stockName, @marketName, @industryName, @listingDate, @updatedAt
+    )
+    ON CONFLICT(ticker) DO UPDATE SET
+      stock_name=excluded.stock_name,
+      market_name=excluded.market_name,
+      industry_name=excluded.industry_name,
+      listing_date=excluded.listing_date,
+      updated_at=excluded.updated_at
+  `);
+  const deleteOld = db.prepare(`DELETE FROM stock_master WHERE ticker NOT IN (${rows.map(() => "?").join(",") || "''"})`);
+  const transaction = db.transaction(() => {
+    if (rows.length === 0) {
+      db.exec(`DELETE FROM stock_master`);
+      return;
+    }
+    deleteOld.run(...rows.map((row) => row.ticker));
+    for (const row of rows) {
+      insert.run(row);
+    }
+  });
+  transaction();
 }

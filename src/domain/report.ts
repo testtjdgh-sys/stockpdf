@@ -1,4 +1,4 @@
-export type DownloadStatus = "pending" | "downloaded" | "failed";
+export type DownloadStatus = "pending" | "downloaded" | "failed" | "available";
 
 export interface Report {
   id?: number;

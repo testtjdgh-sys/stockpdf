@@ -11,7 +11,7 @@ describe("hankyungConsensus", () => {
         keyword: "삼성"
       })
     ).toBe(
-      "https://consensus.hankyung.com/apps.analysis/analysis.list?page=3&search_start_date=2026-05-01&search_end_date=2026-05-31&search_keyword=%EC%82%BC%EC%84%B1"
+      "https://consensus.hankyung.com/analysis/list?sdate=2026-05-01&edate=2026-05-31&now_page=3&search_value=REPORT_TITLE&search_text=%EC%82%BC%EC%84%B1"
     );
   });
 
@@ -22,24 +22,23 @@ describe("hankyungConsensus", () => {
           <td>2026-05-30</td>
           <td>한국투자증권</td>
           <td>삼성전자</td>
-          <td><a href="/apps.analysis/report.view?mcd=123">실적 개선 기대</a></td>
-          <td><a href="http://hkconsensus.hankyung.com/download/report.pdf">pdf</a></td>
+          <td><a href="/analysis/downpdf?report_idx=123" title="실적 개선 기대.pdf">실적 개선 기대</a></td>
         </tr>
       </table>
     `;
 
     expect(
-      extractHankyungReports(html, "http://hkconsensus.hankyung.com/apps.analysis/analysis.list?page=1")
+      extractHankyungReports(html, "https://consensus.hankyung.com/analysis/list?sdate=2026-05-28&edate=2026-05-31&now_page=1")
     ).toEqual([
       {
         sourceName: "HankyungConsensus",
         stockName: "삼성전자",
         ticker: "",
         reportTitle: "실적 개선 기대",
-        firmName: "한국투자증권",
+        firmName: "",
         reportDate: "2026-05-30",
-        sourceUrl: "http://hkconsensus.hankyung.com/apps.analysis/report.view?mcd=123",
-        pdfUrl: "http://hkconsensus.hankyung.com/download/report.pdf"
+        sourceUrl: "https://consensus.hankyung.com/analysis/downpdf?report_idx=123",
+        pdfUrl: "https://consensus.hankyung.com/analysis/downpdf?report_idx=123"
       }
     ]);
   });

@@ -15,6 +15,14 @@ function normalizeCandidate(candidate: SourceReportCandidate): SourceReportCandi
   };
 }
 
+function normalizeDateText(dateText: string): string {
+  const trimmed = normalizeText(dateText);
+  const match = trimmed.match(/^(\d{2}|\d{4})\.(\d{2})\.(\d{2})$/);
+  if (!match) return trimmed.replace(/\//g, "-");
+  const year = match[1].length === 2 ? (Number(match[1]) >= 70 ? `19${match[1]}` : `20${match[1]}`) : match[1];
+  return `${year}-${match[2]}-${match[3]}`;
+}
+
 export function buildNaverResearchUrl(params: {
   section: "company" | "industry" | "market" | "invest" | "economy" | "debenture";
   page?: number;
@@ -22,6 +30,8 @@ export function buildNaverResearchUrl(params: {
   from?: string;
   to?: string;
   keyword?: string;
+  searchType?: string;
+  itemName?: string;
 }): string {
   const page = params.page ?? 1;
   const sectionPath =
@@ -32,6 +42,8 @@ export function buildNaverResearchUrl(params: {
   if (params.ticker) url.searchParams.set("itemCode", params.ticker);
   if (params.from) url.searchParams.set("writeFromDate", params.from);
   if (params.to) url.searchParams.set("writeToDate", params.to);
+  if (params.searchType) url.searchParams.set("searchType", params.searchType);
+  if (params.itemName) url.searchParams.set("itemName", params.itemName);
   return url.toString();
 }
 
@@ -39,37 +51,38 @@ export function extractNaverReports(html: string, pageUrl: string): SourceReport
   const $ = cheerio.load(html);
   const reports: SourceReportCandidate[] = [];
 
-  $("td a[href*='company_read.naver'], td a[href*='industry_read.naver'], td a[href*='market_info_read.naver'], td a[href*='invest_read.naver'], td a[href*='economy_read.naver'], td a[href*='debenture_read.naver']").each(
-    (_i, el) => {
-      const title = normalizeText($(el).text());
-      const href = $(el).attr("href");
-      if (!href) return;
+  $("tr").each((_i, rowEl) => {
+    const row = $(rowEl);
+    const cells = row.find("td");
+    const stockAnchor = cells.eq(0).find("a[href*='/item/main.naver?code=']").first();
+    const titleAnchor = cells.eq(1).find("a").first();
+    const firmName = normalizeText(cells.eq(2).text());
+    const pdfHref = cells.eq(3).find("a").attr("href");
+    const rawDate = normalizeText(cells.eq(4).text());
+    const dateText = normalizeDateText(rawDate);
 
-      const row = $(el).closest("tr");
-      const cells = row.find("td");
-      const firmName = normalizeText(cells.eq(2).text());
-      const dateText = normalizeText(cells.eq(4).text());
-      const pdfHref = row.find("a[href^='https://stock.pstatic.net/stock-research']").attr("href");
-      const stockHref = row.find("a[href*='/item/main.naver?code=']").attr("href");
-      const stockName = stockHref ? normalizeText(row.find("a[href*='/item/main.naver?code=']").text()) : title;
-      const ticker = stockHref ? new URL(stockHref, NAVER_BASE).searchParams.get("code") ?? "" : "";
-      const pdfUrl = pdfHref ? new URL(pdfHref, NAVER_BASE).toString() : new URL(href, pageUrl).toString();
+    const href = titleAnchor.attr("href");
+    if (!href || !pdfHref || !stockAnchor.length) return;
+    if (!/^(\d{2}|\d{4})\.\d{2}\.\d{2}$/.test(rawDate)) return;
 
-      if (!dateText || !pdfUrl) return;
-      reports.push(
-        normalizeCandidate({
-          sourceName: "NaverResearch",
-          stockName,
-          ticker,
-          reportTitle: title,
-          firmName,
-          reportDate: dateText,
-          sourceUrl: new URL(href, pageUrl).toString(),
-          pdfUrl
-        })
-      );
-    }
-  );
+    const stockName = normalizeText(stockAnchor.text() || stockAnchor.attr("title") || "");
+    const ticker = stockAnchor.attr("href") ? new URL(stockAnchor.attr("href")!, NAVER_BASE).searchParams.get("code") ?? "" : "";
+    const reportTitle = normalizeText(titleAnchor.text());
+    const pdfUrl = new URL(pdfHref, NAVER_BASE).toString();
+
+    reports.push(
+      normalizeCandidate({
+        sourceName: "NaverResearch",
+        stockName,
+        ticker,
+        reportTitle,
+        firmName,
+        reportDate: dateText,
+        sourceUrl: new URL(href, pageUrl).toString(),
+        pdfUrl
+      })
+    );
+  });
 
   return reports;
 }

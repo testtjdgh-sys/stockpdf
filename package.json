@@ -7,7 +7,9 @@
   "scripts": {
     "test": "vitest run",
     "crawl": "tsx src/cli/run-crawl.ts",
-    "ui": "tsx src/ui/run-ui.ts"
+    "ui": "tsx src/ui/run-ui.ts",
+    "ui:restart": "bash scripts/run-ui.sh",
+    "dev": "bash scripts/dev-ui.sh"
   },
   "keywords": [],
   "author": "",

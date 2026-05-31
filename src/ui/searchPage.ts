@@ -263,11 +263,28 @@ export function renderSearchPage(model: SearchPageModel): string {
             }
           }
 
-          form?.addEventListener('submit', () => {
+          form?.addEventListener('submit', (e) => {
+            e.preventDefault();
             progress?.classList.add('active');
             form.querySelector('button[type="submit"]').disabled = true;
             form.querySelector('button[type="submit"]').textContent = '수집 중...';
+            progressBar.style.width = '0%';
             progressInterval = window.setInterval(checkProgress, 500);
+            
+            // Submit the form using fetch
+            const formData = new FormData(form);
+            fetch('/crawl', {
+              method: 'POST',
+              body: formData
+            }).then(() => {
+              // Form submission completed, progress polling will handle the rest
+            }).catch(error => {
+              console.error('Form submission failed:', error);
+              clearInterval(progressInterval!);
+              progress?.classList.remove('active');
+              form.querySelector('button[type="submit"]').disabled = false;
+              form.querySelector('button[type="submit"]').textContent = '수집 시작';
+            });
           });
 
           // Checkbox functionality

@@ -9,7 +9,8 @@
     "crawl": "tsx src/cli/run-crawl.ts",
     "ui": "tsx src/ui/run-ui.ts",
     "ui:restart": "bash scripts/run-ui.sh",
-    "dev": "bash scripts/dev-ui.sh"
+    "dev": "bash scripts/dev-ui.sh",
+    "start": "tsx src/ui/run-ui.ts"
   },
   "keywords": [],
   "author": "",

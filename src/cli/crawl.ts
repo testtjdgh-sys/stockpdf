@@ -73,23 +73,49 @@ async function collectCandidates(stockQuery: string, from: string, to: string): 
     }
   }
 
-  // Hankyung consensus
+  // Hankyung consensus with pagination
   try {
-    const url = buildHankyungConsensusUrl({ from, to, keyword: stockQuery, skinType: "company" });
-    const html = await fetchText(url);
-    candidates.push(...extractHankyungReports(html, url));
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+      try {
+        const url = buildHankyungConsensusUrl({ from, to, keyword: stockQuery, skinType: "company", page });
+        const html = await fetchText(url);
+        const reports = extractHankyungReports(html, url);
+        if (reports.length === 0) {
+          hasMore = false;
+        } else {
+          candidates.push(...reports);
+          page++;
+          // Safety limit to prevent infinite loops
+          if (page > 100) {
+            console.warn(`Reached page limit (${page}) for Hankyung consensus`);
+            hasMore = false;
+          }
+        }
+      } catch (error) {
+        console.warn(`Skipping Hankyung consensus page ${page}: ${(error as Error).message}`);
+        hasMore = false;
+      }
+    }
   } catch (error) {
     console.warn(`Skipping Hankyung consensus: ${(error as Error).message}`);
   }
 
-  // Filter candidates to match the search query
+  // Filter candidates to match the search query and date range
   const filtered = candidates.filter(candidate => {
-    if (isTicker) {
-      return candidate.ticker === stockQuery;
-    } else {
-      // Match stock name exactly or partially
-      return candidate.stockName.includes(stockQuery) || stockQuery.includes(candidate.stockName);
-    }
+    // Check if candidate matches the stock query
+    const matchesStock = isTicker 
+      ? candidate.ticker === stockQuery 
+      : candidate.stockName.includes(stockQuery) || stockQuery.includes(candidate.stockName);
+    
+    // Check if candidate is within date range
+    const reportDate = new Date(candidate.reportDate);
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const withinDateRange = reportDate >= fromDate && reportDate <= toDate;
+    
+    return matchesStock && withinDateRange;
   });
 
   return filtered;

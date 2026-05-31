@@ -29,8 +29,9 @@ export function renderSearchPage(model: SearchPageModel): string {
   const rows = model.reports.length
     ? model.reports
         .map(
-          (report) => `
+          (report, index) => `
             <tr>
+              <td><input type="checkbox" class="pdf-checkbox" data-url="${escapeHtml(report.pdfUrl)}" data-index="${index}"></td>
               <td>${escapeHtml(report.reportDate)}</td>
               <td>${escapeHtml(report.stockName)}</td>
               <td>${escapeHtml(report.ticker || "-")}</td>
@@ -43,7 +44,7 @@ export function renderSearchPage(model: SearchPageModel): string {
           `
         )
         .join("")
-    : `<tr><td colspan="8" class="empty">No reports found</td></tr>`;
+    : `<tr><td colspan="9" class="empty">No reports found</td></tr>`;
 
   return `
     <!doctype html>
@@ -206,10 +207,17 @@ export function renderSearchPage(model: SearchPageModel): string {
 
           <div class="grid">
             <div class="panel card">
-              <h2 style="margin:0 0 8px;">수집 결과</h2>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <h2 style="margin:0;">수집 결과</h2>
+                <div>
+                  <button type="button" id="select-all" style="padding:8px 12px; font-size:0.9rem; margin-right:8px;">전체 선택</button>
+                  <button type="button" id="download-selected" style="padding:8px 12px; font-size:0.9rem;">선택 다운로드</button>
+                </div>
+              </div>
               <table>
                 <thead>
                   <tr>
+                    <th><input type="checkbox" id="select-all-checkbox"></th>
                     <th>일자</th>
                     <th>종목</th>
                     <th>티커</th>
@@ -260,6 +268,48 @@ export function renderSearchPage(model: SearchPageModel): string {
             form.querySelector('button[type="submit"]').disabled = true;
             form.querySelector('button[type="submit"]').textContent = '수집 중...';
             progressInterval = window.setInterval(checkProgress, 500);
+          });
+
+          // Checkbox functionality
+          const selectAllCheckbox = document.getElementById('select-all-checkbox');
+          const selectAllButton = document.getElementById('select-all');
+          const downloadSelectedButton = document.getElementById('download-selected');
+          const checkboxes = document.querySelectorAll('.pdf-checkbox');
+
+          selectAllCheckbox?.addEventListener('change', (e) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = checked);
+          });
+
+          selectAllButton?.addEventListener('click', () => {
+            const allChecked = Array.from(checkboxes).every(cb => (cb as HTMLInputElement).checked);
+            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
+            if (selectAllCheckbox) {
+              (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
+            }
+          });
+
+          downloadSelectedButton?.addEventListener('click', () => {
+            const selectedUrls = Array.from(checkboxes)
+              .filter(cb => (cb as HTMLInputElement).checked)
+              .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
+            
+            if (selectedUrls.length === 0) {
+              alert('선택된 PDF가 없습니다.');
+              return;
+            }
+
+            selectedUrls.forEach((url, index) => {
+              setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = url!;
+                link.target = '_blank';
+                link.download = '';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }, index * 500); // 500ms delay between downloads
+            });
           });
         </script>
       </body>

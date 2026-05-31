@@ -69,3 +69,17 @@ export function findReports(db: Database.Database, query: {
     to: query.to
   });
 }
+
+export function getRecentStocks(db: Database.Database, limit = 20) {
+  return db
+    .prepare(
+      `
+      SELECT ticker, stock_name AS stockName
+      FROM reports
+      GROUP BY ticker, stock_name
+      ORDER BY MAX(updated_at) DESC
+      LIMIT ?
+    `
+    )
+    .all(limit) as Array<{ ticker: string; stockName: string }>;
+}

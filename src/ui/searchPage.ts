@@ -1,15 +1,196 @@
 import type { Report } from "../domain/report";
 
-export function renderSearchPage(reports: Report[]): string {
-  const rows = reports.length
-    ? reports.map((report) => `<li>${report.reportTitle}</li>`).join("")
-    : "<p>No reports found</p>";
+export interface SearchPageModel {
+  reports: Report[];
+  recentStocks: Array<{ ticker: string; stockName: string }>;
+  stockQuery: string;
+  from: string;
+  to: string;
+  message?: string;
+}
+
+function escapeHtml(input: string): string {
+  return input
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+export function renderSearchPage(model: SearchPageModel): string {
+  const options = model.recentStocks
+    .map((stock) => {
+      const label = stock.ticker ? `${stock.stockName} (${stock.ticker})` : stock.stockName;
+      return `<option value="${escapeHtml(stock.stockName)}" label="${escapeHtml(label)}"></option>`;
+    })
+    .join("");
+
+  const rows = model.reports.length
+    ? model.reports
+        .map(
+          (report) => `
+            <tr>
+              <td>${escapeHtml(report.reportDate)}</td>
+              <td>${escapeHtml(report.stockName)}</td>
+              <td>${escapeHtml(report.ticker || "-")}</td>
+              <td>${escapeHtml(report.reportTitle)}</td>
+              <td>${escapeHtml(report.sourceName)}</td>
+              <td>${escapeHtml(report.downloadStatus)}</td>
+              <td>${report.localFilePath ? `<a href="file://${escapeHtml(report.localFilePath)}">열기</a>` : "-"}</td>
+            </tr>
+          `
+        )
+        .join("")
+    : `<tr><td colspan="7" class="empty">No reports found</td></tr>`;
 
   return `
-    <html>
+    <!doctype html>
+    <html lang="ko">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Stock Report Crawler</title>
+        <style>
+          :root {
+            color-scheme: light;
+            --bg: #f5f1e8;
+            --panel: #fffdf8;
+            --ink: #1f2937;
+            --muted: #6b7280;
+            --line: #d6d1c4;
+            --accent: #0f766e;
+            --accent-2: #7c2d12;
+          }
+          body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+              radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 30%),
+              radial-gradient(circle at top right, rgba(124, 45, 18, 0.08), transparent 24%),
+              var(--bg);
+          }
+          .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+          .hero {
+            display: grid;
+            gap: 18px;
+            grid-template-columns: 1.2fr 0.8fr;
+            align-items: end;
+            margin-bottom: 20px;
+          }
+          .title { font-size: clamp(2rem, 4vw, 3.4rem); line-height: 1; margin: 0; letter-spacing: -0.05em; }
+          .subtitle { margin: 10px 0 0; color: var(--muted); font-size: 1rem; }
+          .card, .panel {
+            background: rgba(255, 253, 248, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: 0 18px 48px rgba(31, 41, 55, 0.08);
+          }
+          .card { padding: 20px; }
+          .controls { display: grid; grid-template-columns: 1.3fr 0.6fr 0.6fr auto; gap: 12px; }
+          label { display: grid; gap: 8px; font-size: 0.9rem; color: var(--muted); }
+          input {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px 14px;
+            font-size: 1rem;
+            background: white;
+            color: var(--ink);
+          }
+          button {
+            border: 0;
+            border-radius: 14px;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, var(--accent), #0ea5a5);
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .secondary {
+            background: linear-gradient(135deg, var(--accent-2), #c2410c);
+          }
+          .status {
+            margin-top: 14px;
+            color: var(--muted);
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+            overflow: hidden;
+          }
+          th, td {
+            border-bottom: 1px solid var(--line);
+            padding: 12px 10px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 0.95rem;
+          }
+          th { color: var(--muted); font-weight: 700; }
+          .empty { text-align: center; color: var(--muted); padding: 32px; }
+          .grid { display: grid; gap: 18px; }
+          .hint { color: var(--muted); font-size: 0.9rem; }
+          @media (max-width: 900px) {
+            .hero, .controls { grid-template-columns: 1fr; }
+          }
+        </style>
+      </head>
       <body>
-        <h1>Search reports</h1>
-        ${rows}
+        <div class="wrap">
+          <div class="hero">
+            <div>
+              <h1 class="title">증권사 리포트 수집기</h1>
+              <p class="subtitle">종목과 기간을 고르면 한경컨센서스와 네이버 리서치에서 공개 PDF 리포트를 모아서 저장합니다.</p>
+            </div>
+            <div class="card">
+              <div class="hint">최근 수집 종목을 자동완성으로 보여줍니다.</div>
+              <div class="hint">수집이 끝나면 아래 목록에서 바로 확인할 수 있습니다.</div>
+            </div>
+          </div>
+
+          <div class="panel card">
+            <form method="post" action="/crawl" class="controls">
+              <label>
+                종목명/티커
+                <input list="recent-stocks" name="stockQuery" value="${escapeHtml(model.stockQuery)}" placeholder="예: 삼성전자, 005930" />
+              </label>
+              <label>
+                시작일
+                <input type="date" name="from" value="${escapeHtml(model.from)}" />
+              </label>
+              <label>
+                종료일
+                <input type="date" name="to" value="${escapeHtml(model.to)}" />
+              </label>
+              <button type="submit">수집 시작</button>
+            </form>
+            <datalist id="recent-stocks">${options}</datalist>
+            <div class="status">${model.message ? escapeHtml(model.message) : "준비됨"}</div>
+          </div>
+
+          <div class="grid">
+            <div class="panel card">
+              <h2 style="margin:0 0 8px;">수집 결과</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>일자</th>
+                    <th>종목</th>
+                    <th>티커</th>
+                    <th>제목</th>
+                    <th>출처</th>
+                    <th>상태</th>
+                    <th>PDF</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </body>
     </html>
   `;

@@ -6,13 +6,15 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "crawl": "tsx src/cli/run-crawl.ts"
+    "crawl": "tsx src/cli/run-crawl.ts",
+    "ui": "tsx src/ui/run-ui.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "playwright": "^1.60.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"

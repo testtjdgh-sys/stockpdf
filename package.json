@@ -14,5 +14,8 @@
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0"
   }
 }

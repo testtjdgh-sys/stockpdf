@@ -299,9 +299,13 @@ export function renderSearchPage(model: SearchPageModel): string {
 
           form?.addEventListener('submit', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             progress?.classList.add('active');
-            form.querySelector('button[type="submit"]').disabled = true;
-            form.querySelector('button[type="submit"]').textContent = '수집 중...';
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+              submitButton.disabled = true;
+              submitButton.textContent = '수집 중...';
+            }
             progressBar.style.width = '0%';
             progressInterval = window.setInterval(checkProgress, 500);
             
@@ -314,10 +318,12 @@ export function renderSearchPage(model: SearchPageModel): string {
               // Form submission completed, progress polling will handle the rest
             }).catch(error => {
               console.error('Form submission failed:', error);
-              clearInterval(progressInterval!);
+              if (progressInterval) clearInterval(progressInterval);
               progress?.classList.remove('active');
-              form.querySelector('button[type="submit"]').disabled = false;
-              form.querySelector('button[type="submit"]').textContent = '수집 시작';
+              if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = '수집 시작';
+              }
             });
           });
 
@@ -360,43 +366,50 @@ export function renderSearchPage(model: SearchPageModel): string {
             return document.querySelectorAll('.pdf-checkbox');
           }
 
-          selectAllCheckbox?.addEventListener('change', (e) => {
-            const checked = (e.target as HTMLInputElement).checked;
-            getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
-          });
-
-          selectAllButton?.addEventListener('click', () => {
+          // Setup checkbox event listeners
+          function setupCheckboxListeners() {
             const checkboxes = getCheckboxes();
-            const allChecked = Array.from(checkboxes).every(cb => (cb as HTMLInputElement).checked);
-            checkboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
-            if (selectAllCheckbox) {
-              (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
-            }
-          });
-
-          downloadSelectedButton?.addEventListener('click', () => {
-            const checkboxes = getCheckboxes();
-            const selectedUrls = Array.from(checkboxes)
-              .filter(cb => (cb as HTMLInputElement).checked)
-              .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
             
-            if (selectedUrls.length === 0) {
-              alert('선택된 PDF가 없습니다.');
-              return;
-            }
-
-            selectedUrls.forEach((url, index) => {
-              setTimeout(() => {
-                const link = document.createElement('a');
-                link.href = url!;
-                link.target = '_blank';
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }, index * 500); // 500ms delay between downloads
+            selectAllCheckbox?.addEventListener('change', (e) => {
+              const checked = (e.target as HTMLInputElement).checked;
+              getCheckboxes().forEach(cb => (cb as HTMLInputElement).checked = checked);
             });
-          });
+
+            selectAllButton?.addEventListener('click', () => {
+              const currentCheckboxes = getCheckboxes();
+              const allChecked = Array.from(currentCheckboxes).every(cb => (cb as HTMLInputElement).checked);
+              currentCheckboxes.forEach(cb => (cb as HTMLInputElement).checked = !allChecked);
+              if (selectAllCheckbox) {
+                (selectAllCheckbox as HTMLInputElement).checked = !allChecked;
+              }
+            });
+
+            downloadSelectedButton?.addEventListener('click', () => {
+              const currentCheckboxes = getCheckboxes();
+              const selectedUrls = Array.from(currentCheckboxes)
+                .filter(cb => (cb as HTMLInputElement).checked)
+                .map(cb => (cb as HTMLInputElement).getAttribute('data-url'));
+              
+              if (selectedUrls.length === 0) {
+                alert('선택된 PDF가 없습니다.');
+                return;
+              }
+
+              selectedUrls.forEach((url, index) => {
+                setTimeout(() => {
+                  const link = document.createElement('a');
+                  link.href = url!;
+                  link.target = '_blank';
+                  link.download = '';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }, index * 500); // 500ms delay between downloads
+              });
+            });
+          }
+
+          setupCheckboxListeners();
         </script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
